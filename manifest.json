@@ -1,0 +1,11 @@
+{
+  "name": "卡路里日記",
+  "short_name": "卡路里日記",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#FFF6EA",
+  "theme_color": "#FFF6EA",
+  "icons": [
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
