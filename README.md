@@ -30,7 +30,8 @@
 | `index.html` | 整個 App (畫面 + 程式 + 食物/運動資料庫都在裡面) |
 | `icon-512.png` / `icon.svg` | 主畫面 App 圖示 |
 | `manifest.json` | 讓 Android 能「安裝」這個 App 的設定檔 |
-| `.github/workflows/pages.yml` | 自動部署:每次 commit 後自動更新網站 |
+
+網站用 GitHub Pages 從 main 分支發布,每次 commit 後會自動重新部署。
 
 ## 備註
 
