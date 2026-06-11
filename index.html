@@ -745,9 +745,10 @@ document.addEventListener("visibilitychange",()=>{
 window.addEventListener("pageshow",()=>renderToday());
 
 /* ================= 啟動 ================= */
+const APP_VER="1.2";
 const now=new Date();
 document.getElementById("hdr-date").textContent=
-  now.getFullYear()+"/"+(now.getMonth()+1)+"/"+now.getDate()+" 週"+"日一二三四五六"[now.getDay()];
+  now.getFullYear()+"/"+(now.getMonth()+1)+"/"+now.getDate()+" 週"+"日一二三四五六"[now.getDay()]+" · v"+APP_VER;
 document.getElementById("sim-in").value=tdee(db.profile);
 renderFoodCats();renderFoodList();renderExList();renderScenChips();
 loadProfileForm();renderToday();renderSim();
