@@ -58,6 +58,17 @@ section.tab.active{display:block; animation:fadein .25s ease;}
 .stat .val{font-size:16px; font-weight:700; font-variant-numeric:tabular-nums;}
 .hint-line{margin-top:12px; font-size:13px; color:var(--muted); line-height:1.6;
   background:var(--card2); border-radius:12px; padding:10px 12px;}
+/* 日期瀏覽 */
+.daynav{display:flex; align-items:center; justify-content:center; gap:14px; margin:2px 0 12px;}
+.daynav button{width:38px; height:38px; border-radius:12px; border:1px solid var(--line);
+  background:var(--card); color:var(--text); font-size:20px; font-weight:700;
+  box-shadow:0 3px 8px rgba(217,160,102,.10);}
+.daynav button:disabled{opacity:.35;}
+.daynav div{min-width:120px; text-align:center; font-size:15px; font-weight:700;}
+/* 匯出入 */
+#io-box{width:100%; background:var(--card2); border:1px solid var(--line); color:var(--text);
+  border-radius:12px; padding:10px; font-size:12px; height:88px; margin-top:10px;
+  font-family:ui-monospace,monospace; outline:none;}
 .hint-line b{color:var(--text);}
 /* lists */
 .entry{display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--line);}
@@ -163,6 +174,11 @@ svg text{font-family:inherit;}
 
 <!-- ===== 今日 ===== -->
 <section class="tab active" id="tab-today">
+  <div class="daynav">
+    <button id="dn-prev">‹</button>
+    <div id="dn-label">今天</div>
+    <button id="dn-next" disabled>›</button>
+  </div>
   <div class="card">
     <div class="ring-wrap">
       <div class="ring-box">
@@ -279,9 +295,15 @@ svg text{font-family:inherit;}
     <div class="hint-line" id="me-result" style="margin-top:12px"></div>
   </div>
   <div class="card">
-    <h2>資料</h2>
+    <h2>資料備份</h2>
+    <button class="btn" onclick="exportData()">📤 匯出備份 (自動複製,貼到備忘錄保存)</button>
+    <button class="btn ghost" onclick="importData()">📥 匯入備份 (把備份貼到下方框再按我)</button>
+    <textarea id="io-box" placeholder="匯出:按上方「匯出備份」,內容會出現在這裡並自動複製。&#10;匯入:把之前的備份貼進來,按「匯入備份」。"></textarea>
+    <div class="hint-line" style="margin-top:10px">所有記錄只存在這支手機裡,不會上傳。⚠️ 注意:刪掉主畫面的 App 圖示會連記錄一起清空,重要資料請先匯出備份。</div>
+  </div>
+  <div class="card">
+    <h2>危險區</h2>
     <button class="btn ghost" onclick="clearAll()" style="margin-top:0">清除所有記錄</button>
-    <div class="hint-line" style="margin-top:12px">所有資料只存在這支手機的瀏覽器裡 (localStorage),不會上傳到任何地方。</div>
   </div>
 </section>
 
@@ -400,9 +422,20 @@ function sumOut(k){return day(k).exs.reduce((s,e)=>s+e.k,0);}
 function fmt(n){return Math.round(n).toLocaleString("zh-TW");}
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
 
-/* ================= 今日儀表板 ================= */
+/* ================= 今日儀表板 (可瀏覽過去日期) ================= */
+let viewOff=0; // 0=今天,-1=昨天…
+function viewKey(){const d=new Date();d.setDate(d.getDate()+viewOff);return todayKey(d);}
+function dnLabel(){
+  if(viewOff===0)return "今天";
+  if(viewOff===-1)return "昨天";
+  const d=new Date();d.setDate(d.getDate()+viewOff);
+  return (d.getMonth()+1)+"/"+d.getDate()+" 週"+"日一二三四五六"[d.getDay()];
+}
 function renderToday(){
-  const k=todayKey(), inn=sumIn(k), out=sumOut(k), goal=tdee(db.profile), net=inn-out, left=goal-net;
+  document.getElementById("dn-label").textContent=dnLabel();
+  document.getElementById("dn-next").disabled=(viewOff===0);
+  document.getElementById("dn-prev").disabled=(viewOff<=-60);
+  const k=viewKey(), inn=sumIn(k), out=sumOut(k), goal=tdee(db.profile), net=inn-out, left=goal-net;
   document.getElementById("st-goal").textContent=fmt(goal);
   document.getElementById("st-in").textContent=fmt(inn);
   document.getElementById("st-out").textContent=fmt(out);
@@ -420,7 +453,7 @@ function renderToday(){
   // hint:把差距換成生活情境
   const h=document.getElementById("today-hint"); const w=db.profile.w;
   const walkMin=Math.round(Math.abs(left)/(4.3*w/60));
-  if(inn===0&&out===0){h.innerHTML="今天還沒有記錄。到 <b>🍱 飲食</b> 或 <b>🏃 運動</b> 點兩下就能記好,熱量自動算。";}
+  if(inn===0&&out===0){h.innerHTML=viewOff===0?"今天還沒有記錄。到 <b>🍱 飲食</b> 或 <b>🏃 運動</b> 點兩下就能記好,熱量自動算。":"這一天沒有任何記錄。";}
   else if(over){h.innerHTML="超過目標 <b>"+fmt(net-goal)+" kcal</b> — 大約要 <b>快走 "+walkMin+" 分鐘</b> 才能打平,或明天少吃一份"+nearestFood(net-goal)+"。";}
   else{h.innerHTML="目前低於目標 <b>"+fmt(left)+" kcal</b>,大約等於 "+nearestFood(left)+" 的熱量。照這個節奏,一週約 "+(left*7/7700).toFixed(1)+" kg 的減重幅度。";}
   renderTodayList(); renderWeekChart();
@@ -433,7 +466,7 @@ function nearestFood(kcal){
   return "<b>"+best.n+"</b> ("+best.k+" kcal)";
 }
 function renderTodayList(){
-  const k=todayKey(), d=day(k), el=document.getElementById("today-list");
+  const k=viewKey(), d=day(k), el=document.getElementById("today-list");
   if(!d.foods.length&&!d.exs.length){el.innerHTML='<div class="empty">尚無記錄</div>';return;}
   let html="";
   d.foods.forEach((f,i)=>{html+=
@@ -448,7 +481,7 @@ function renderTodayList(){
     '<button class="del" onclick="delEntry(\'exs\','+i+')">✕</button></div>';});
   el.innerHTML=html;
 }
-function delEntry(type,i){day(todayKey())[type].splice(i,1);save();renderToday();toast("已刪除");}
+function delEntry(type,i){day(viewKey())[type].splice(i,1);save();renderToday();toast("已刪除");}
 
 function renderWeekChart(){
   const W=460,H=190,pad={l:38,r:6,t:14,b:24}, goal=tdee(db.profile);
@@ -470,7 +503,7 @@ function renderWeekChart(){
     const w1=bw*0.26;
     if(d.inn>0)s+='<rect x="'+(cx-w1-2)+'" y="'+y(d.inn)+'" width="'+w1+'" height="'+(y(0)-y(d.inn))+'" rx="3" fill="#FB923C" opacity=".95"/>';
     if(d.out>0)s+='<rect x="'+(cx+2)+'" y="'+y(d.out)+'" width="'+w1+'" height="'+(y(0)-y(d.out))+'" rx="3" fill="#46B5A6" opacity=".95"/>';
-    s+='<text x="'+cx+'" y="'+(H-7)+'" fill="'+(i===6?"#53382B":"#B59B82")+'" font-size="10" text-anchor="middle">'+d.lab+'</text>';});
+    s+='<text x="'+cx+'" y="'+(H-7)+'" fill="'+(d.k===viewKey()?"#53382B":"#B59B82")+'" font-size="10" font-weight="'+(d.k===viewKey()?"700":"400")+'" text-anchor="middle">'+d.lab+'</text>';});
   s+='</svg>';
   document.getElementById("week-chart").innerHTML=s;
 }
@@ -571,7 +604,7 @@ function bumpG(d){
 function addWebFoodFromSheet(){
   const {x,g}=sheetCtx, k=Math.round(x.k*g/100);
   day(todayKey()).foods.push({n:x.n,k,s:g+" g · "+(x.src||"網路查詢")});
-  save();closeSheet();toast("🍱 已記錄 "+x.n+" +"+fmt(k)+" kcal");renderToday();
+  save();closeSheet();toast("🍱 已記錄 "+x.n+" +"+fmt(k)+" kcal");viewOff=0;renderToday();
 }
 let sheetCtx=null;
 function openFoodSheet(i){
@@ -593,7 +626,7 @@ function bumpQty(d){
 function addFoodFromSheet(){
   const {f,qty}=sheetCtx;
   day(todayKey()).foods.push({n:f.n+(qty!==1?" ×"+qty:""),k:Math.round(f.k*qty),s:qty+" 份 ("+f.u+")"});
-  save();closeSheet();toast("🍱 已記錄 "+f.n+" +"+fmt(f.k*qty)+" kcal");renderToday();
+  save();closeSheet();toast("🍱 已記錄 "+f.n+" +"+fmt(f.k*qty)+" kcal");viewOff=0;renderToday();
 }
 function addCustomFood(){
   const n=document.getElementById("cf-name").value.trim();
@@ -601,7 +634,7 @@ function addCustomFood(){
   if(!n||!(k>=0)){toast("請填名稱與熱量");return;}
   day(todayKey()).foods.push({n,k,s:"自訂"});save();
   document.getElementById("cf-name").value="";document.getElementById("cf-kcal").value="";
-  toast("🍱 已記錄 "+n+" +"+fmt(k)+" kcal");renderToday();
+  toast("🍱 已記錄 "+n+" +"+fmt(k)+" kcal");viewOff=0;renderToday();
 }
 
 /* ================= 運動 ================= */
@@ -635,7 +668,7 @@ function openExSheet(i){
 function addExFromSheet(){
   const {e,min}=sheetCtx;
   day(todayKey()).exs.push({n:e.n,e:e.e,min,k:exKcal(e.met,min)});
-  save();closeSheet();toast("🏃 已記錄 "+e.n+" −"+fmt(exKcal(e.met,min))+" kcal");renderToday();
+  save();closeSheet();toast("🏃 已記錄 "+e.n+" −"+fmt(exKcal(e.met,min))+" kcal");viewOff=0;renderToday();
 }
 
 /* ================= sheet 共用 ================= */
@@ -739,6 +772,23 @@ function showMeResult(){
     "基礎代謝 (BMR) 約 <b>"+fmt(bmr(p))+" kcal</b> — 就算整天躺著也會消耗的量。<br>"+
     "每日消耗 (TDEE) 約 <b>"+fmt(tdee(p))+" kcal</b> — 這就是你的每日熱量目標。";
 }
+async function exportData(){
+  const s=JSON.stringify(db);
+  document.getElementById("io-box").value=s;
+  try{await navigator.clipboard.writeText(s);toast("📤 已複製!貼到備忘錄保存");}
+  catch(e){toast("已放入下方框,請長按全選複製");}
+}
+function importData(){
+  const s=document.getElementById("io-box").value.trim();
+  if(!s){toast("請先把備份內容貼到下方框");return;}
+  try{
+    const d=JSON.parse(s);
+    if(!d||typeof d!=="object"||!d.days||!d.profile)throw 0;
+    if(!confirm("匯入會覆蓋目前的資料,確定嗎?"))return;
+    db=d;save();loadProfileForm();viewOff=0;renderToday();
+    toast("📥 匯入成功!");
+  }catch(e){toast("這段內容不是有效的備份");}
+}
 function clearAll(){
   if(!confirm("確定要清除所有飲食與運動記錄嗎?(個人資料會保留)"))return;
   db.days={};save();renderToday();toast("已清除記錄");
@@ -761,6 +811,8 @@ document.querySelectorAll("nav.tabbar button").forEach(b=>{
     if(b.dataset.tab==="tab-today")renderToday();
   });
 });
+document.getElementById("dn-prev").addEventListener("click",()=>{if(viewOff>-60){viewOff--;renderToday();}});
+document.getElementById("dn-next").addEventListener("click",()=>{if(viewOff<0){viewOff++;renderToday();}});
 document.getElementById("food-q").addEventListener("input",renderFoodList);
 document.getElementById("ex-q").addEventListener("input",renderExList);
 document.getElementById("sim-in").addEventListener("input",renderSim);
@@ -779,7 +831,7 @@ document.addEventListener("visibilitychange",()=>{
 window.addEventListener("pageshow",()=>renderToday());
 
 /* ================= 啟動 ================= */
-const APP_VER="1.3";
+const APP_VER="1.4";
 const now=new Date();
 document.getElementById("hdr-date").textContent=
   now.getFullYear()+"/"+(now.getMonth()+1)+"/"+now.getDate()+" 週"+"日一二三四五六"[now.getDay()]+" · v"+APP_VER;
